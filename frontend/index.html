@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent IP Tracker & Auto-Blocker</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i class="fa-solid fa-shield-halved text-primary glow-text"></i>
+                <h2>IntelliBlock<span class="text-primary">.io</span></h2>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" onclick="switchView('dashboard', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                <a href="#" class="nav-item" onclick="switchView('blocked', this)"><i class="fa-solid fa-ban"></i> Blocked IPs</a>
+                <a href="#" class="nav-item" onclick="switchView('threat', this)"><i class="fa-solid fa-network-wired"></i> Threat Intel</a>
+                <a href="#" class="nav-item" onclick="switchView('settings', this)"><i class="fa-solid fa-gear"></i> Settings</a>
+            </nav>
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span class="ping-dot active"></span>
+                    <span id="conn-status">Engine Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar glass-panel">
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" placeholder="Search IP, events, or modules (Ctrl+K)..." title="Search elements" aria-label="Search">
+                </div>
+                <div class="topbar-actions">
+                    <button class="icon-btn" title="View Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i></button>
+                    <div class="user-avatar cursor-pointer" onclick="switchView('profile', null)">AD</div>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="app-view active">
+                <div class="dashboard-content">
+                    <!-- Statistics Overview -->
+                    <section class="overview-cards">
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon bg-blue"><i class="fa-solid fa-globe"></i></div>
+                            <div class="stat-details">
+                                <h3>Packets Analyzed</h3>
+                                <div class="stat-value" id="stat-packets">...</div>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel alert-pulse">
+                            <div class="stat-icon bg-red"><i class="fa-solid fa-ban"></i></div>
+                            <div class="stat-details">
+                                <h3>Active Blocks</h3>
+                                <div class="stat-value text-red" id="stat-blocks">...</div>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon bg-purple"><i class="fa-solid fa-brain"></i></div>
+                            <div class="stat-details">
+                                <h3>ML Detections</h3>
+                                <div class="stat-value" id="stat-ml">...</div>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon bg-green"><i class="fa-solid fa-stopwatch"></i></div>
+                            <div class="stat-details">
+                                <h3>Avg Resp. Time</h3>
+                                <div class="stat-value">12ms</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Analytics & Lists Grid -->
+                    <div class="bento-grid">
+                        <!-- Threat Chart -->
+                        <div class="card glass-panel chart-card span-2">
+                            <div class="card-header">
+                                <h3>Traffic vs Blocks (Real-time)</h3>
+                                <div class="chart-actions">
+                                    <span class="badge badge-outline">Live</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="threatChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Live Feed -->
+                        <div class="card glass-panel feed-card span-1">
+                            <div class="card-header">
+                                <h3>Live Sniffer Feed</h3>
+                            </div>
+                            <div class="card-body feed-container" id="live-feed">
+                                <!-- Items populated via JS -->
+                                <div class="skeleton-feed"></div>
+                                <div class="skeleton-feed"></div>
+                                <div class="skeleton-feed"></div>
+                            </div>
+                        </div>
+
+                        <!-- Blocked IPs Table -->
+                        <div class="card glass-panel table-card span-3">
+                            <div class="card-header flex-between">
+                                <h3>Currently Blocked IPs</h3>
+                                <button class="btn btn-primary" title="Add Manual Block" onclick="toggleManualBlockModal()">
+                                    <i class="fa-solid fa-plus"></i> Manual Block
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>IP Address</th>
+                                            <th>Reason</th>
+                                            <th>Confidence</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="blocked-table-body">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blocked IPs View -->
+            <div id="view-blocked" class="app-view">
+                <div class="header-section mt-4">
+                    <h2>Blocked IP Database</h2>
+                    <p class="text-secondary">Comprehensive log of all actively blocked IP addresses.</p>
+                </div>
+                <div class="card glass-panel mt-4">
+                    <div class="card-header flex-between">
+                        <div class="search-bar search-filter">
+                            <i class="fa-solid fa-filter"></i>
+                            <input type="text" placeholder="Filter by IP or Reason..." title="Filter list" aria-label="Filter database">
+                        </div>
+                        <div>
+                            <button class="btn btn-danger" onclick="toggleManualBlockModal()">
+                                <i class="fa-solid fa-plus"></i> Add Block Rule
+                            </button>
+                            <button class="btn btn-primary ml-2">
+                                <i class="fa-solid fa-download"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>Reason / Threat Signature</th>
+                                    <th>ML Confidence</th>
+                                    <th>Time Detected</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="full-blocked-table-body">
+                                <!-- Duplicated via JS for simplicity -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threat Intel View -->
+            <div id="view-threat" class="app-view">
+                <div class="header-section mt-4">
+                    <h2>Global Threat Intelligence</h2>
+                    <p class="text-secondary">Machine learning insights, active models, and global attack vectors.</p>
+                </div>
+                
+                <div class="overview-cards mt-4">
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon bg-purple"><i class="fa-solid fa-microchip"></i></div>
+                        <div class="stat-details">
+                            <h3>Active ML Model</h3>
+                            <div class="stat-value stat-value-sm">Random Forest v1.4</div>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon bg-blue"><i class="fa-solid fa-database"></i></div>
+                        <div class="stat-details">
+                            <h3>Training Data</h3>
+                            <div class="stat-value stat-value-sm">CICIDS-2017</div>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon bg-green"><i class="fa-solid fa-check-double"></i></div>
+                        <div class="stat-details">
+                            <h3>Model Accuracy</h3>
+                            <div class="stat-value">99.8%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-panel chart-card h-400 mt-4">
+                    <div class="card-header">
+                        <h3>Geographic Attack Distribution (Simulation)</h3>
+                    </div>
+                    <div class="card-body flex-center-col">
+                        <i class="fa-solid fa-earth-americas text-secondary icon-huge"></i>
+                        <h4 class="text-secondary">Global Threat Map integration pending...</h4>
+                        <p class="text-secondary text-sm-center">(Requires GeoIP Database configuration)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="view-settings" class="app-view">
+                <div class="header-section mt-4">
+                    <h2>System Configuration</h2>
+                    <p class="text-secondary">Modify detection thresholds and firewall behaviors.</p>
+                </div>
+                
+                <div class="bento-grid mt-4">
+                    <div class="card glass-panel span-2">
+                        <div class="card-header"><h3>Detection Thresholds</h3></div>
+                        <div class="card-body">
+                            <div class="form-group mb-4">
+                                <label for="maxReqs">Max Requests Per Minute (DDoS Protection)</label>
+                                <input type="number" id="maxReqs" class="form-control" value="100" title="Max Requests Per Minute" aria-label="Max Requests Limit">
+                                <small class="text-secondary">Requests exceeding this trigger an immediate block.</small>
+                            </div>
+                            <div class="form-group mb-4">
+                                <label for="maxPorts">Max Unique Ports Scanned</label>
+                                <input type="number" id="maxPorts" class="form-control" value="10" title="Max Unique Ports Scanned" aria-label="Max Port Scan Limit">
+                                <small class="text-secondary">Number of closed ports hit before flagging as Port Scan.</small>
+                            </div>
+                            <div class="form-group mb-4">
+                                <label for="mlConf">ML Confidence Threshold (0.0 - 1.0)</label>
+                                <input type="number" id="mlConf" step="0.05" class="form-control" value="0.75" title="ML Confidence Threshold" aria-label="ML Confidence">
+                                <small class="text-secondary">Minimum probability required for ML auto-block.</small>
+                            </div>
+                            <button class="btn btn-primary mt-2"><i class="fa-solid fa-save"></i> Save Settings</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card glass-panel span-1">
+                        <div class="card-header"><h3>Firewall Controls</h3></div>
+                        <div class="card-body">
+                            <div class="status-indicator status-box mb-4">
+                                <span class="ping-dot active"></span>
+                                <span class="text-success">iptables integration Active</span>
+                            </div>
+                            
+                            <p class="text-secondary mb-4 text-sm">The system is currently authorized to modify host firewall rules.</p>
+                            
+                            <button class="btn btn-danger full-width mb-3"><i class="fa-solid fa-power-off"></i> Disable Auto-Block</button>
+                            <button class="btn btn-primary btn-outline full-width"><i class="fa-solid fa-trash-can"></i> Flush All Rules</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile View -->
+            <div id="view-profile" class="app-view">
+                <div class="header-section flex-align-gap mt-4 mb-4">
+                    <div class="user-avatar avatar-lg">AD</div>
+                    <div>
+                        <h2>Administrator</h2>
+                        <p class="text-secondary">admin@intelliblock.io</p>
+                    </div>
+                </div>
+
+                <div class="card glass-panel">
+                    <div class="card-header"><h3>Security Details</h3></div>
+                    <div class="card-body">
+                        <div class="list-item">
+                            <div>
+                                <h4 class="mb-1">Two-Factor Authentication</h4>
+                                <p class="text-secondary text-sm">Secure your account with TOTP.</p>
+                            </div>
+                            <span class="badge badge-outline badge-danger">Disabled</span>
+                        </div>
+                        <div class="list-item">
+                            <div>
+                                <h4 class="mb-1">API Key Management</h4>
+                                <p class="text-secondary text-sm">Keys used for external hooks.</p>
+                            </div>
+                            <button class="btn btn-sm btn-primary">Generate Key</button>
+                        </div>
+                        <div class="list-item-last">
+                            <div>
+                                <h4 class="mb-1 text-red">Account Logout</h4>
+                                <p class="text-secondary text-sm">Terminate active sessions.</p>
+                            </div>
+                            <button class="btn btn-sm btn-danger">Log Out</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Manual Block Modal -->
+    <div class="modal glass-panel" id="blockModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manual IP Block</h3>
+                <button class="close-btn" aria-label="Close" title="Close Modal" onclick="toggleManualBlockModal()"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>IP Address to block:</label>
+                    <input type="text" id="manualIpInput" class="form-control" placeholder="e.g. 192.168.1.100">
+                </div>
+                <div class="form-group mt-3">
+                    <label>Reason:</label>
+                    <input type="text" id="manualReasonInput" class="form-control" placeholder="Suspicious activity">
+                </div>
+                <button class="btn btn-danger mt-4 full-width" onclick="submitManualBlock()">Apply Block Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+scapy
+firebase-admin
+scikit-learn
+xgboost
+pandas
+numpy
+joblib
+pydantic
+pydantic-settings
+pytest
+httpx
+websockets
